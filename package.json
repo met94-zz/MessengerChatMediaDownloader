@@ -1,0 +1,16 @@
+{
+  "name": "messengerchatmediadownloader",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "facebook-chat-api": "^1.6.1",
+    "fs": "0.0.1-security"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "test"
+  },
+  "author": "Alan Bara",
+  "license": "MIT"
+}
