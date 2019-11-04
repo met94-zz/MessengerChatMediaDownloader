@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29418.71
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "MessengerChatMediaDownloader", "MessengerChatMediaDownloader.njsproj", "{732AD66A-5887-4A6C-B937-787ADAFDD00C}"
+Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "MessengerChatMediaDownloader", "MessengerChatMediaDownloader\MessengerChatMediaDownloader.njsproj", "{732AD66A-5887-4A6C-B937-787ADAFDD00C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
