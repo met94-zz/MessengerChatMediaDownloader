@@ -1,12 +1,7 @@
-import * as fs from 'fs';
-import * as delay from 'delay';
-import * as random from 'random';
+import * as fse from 'fs-extra';
 import * as Facebook from 'facebook-chat-api';
 import * as readline from 'readline';
-
-class MediaFetcherError extends Error {
-
-}
+import { Config } from './Config';
 
 export class Core {
     facebookApi: any;
@@ -17,7 +12,7 @@ export class Core {
     async setup(appState: any): Promise<any> {
         this.facebookApi = await this.logFacebook(appState);
         if (appState != null && this.facebookApi == null) {
-            console.error("Failed to log with the appState. Retrying with credentials");
+            Config.logError("Failed to log with the appState. Retrying with credentials");
             this.facebookApi = await this.logFacebook(null);
         }
         if (this.facebookApi == null) {
@@ -47,11 +42,11 @@ export class Core {
             let facebookApi: any = await new Promise((resolve, reject) => {
                 const loginCallback = (err: string, api: any) => {
                     if (err) {
-                        console.error(err);
+                        Config.logError(err);
                         reject(Error(err));
                         return;
                     }
-                    fs.writeFileSync('appstate.json', JSON.stringify(api.getAppState()));
+                    fse.outputJsonSync("appstate.json", api.getAppState());
                     resolve(api);
                 };
                 // Log in
@@ -64,7 +59,7 @@ export class Core {
             });
             return facebookApi;
         } catch (error) {
-            console.error(error);
+            Config.logError(error);
         }
     }
 }

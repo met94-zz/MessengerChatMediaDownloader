@@ -3,56 +3,43 @@ import * as fse from 'fs-extra';
 import * as delay from 'delay';
 import * as random from 'random';
 import * as path from 'path';
+import { Config } from './Config';
+import { SavedThreadManager, ThreadSavedInfo } from './ThreadSavedInfo';
+import { PathsManager } from './PathsManager';
+import { Singletons } from './Singletons';
 
 class MediaFetcherError extends Error {
 
-}
-
-class ThreadProgress {
-    messagesRead: number = 0;
-    lastTimestamp: number;
 }
 
 export class MediaFetcher {
     /**
      * Maximum errors when quering all threads
      */
-    readonly MaxErrorsAll = 100;
+    readonly MaxErrorsAll = 1000;
     /**
      * Maximum errors when not quering all threads
      */
-    readonly MaxErrors = 15;
+    readonly MaxErrors = 40;
     readonly postsToReadAtOnceMin = 900;
     readonly postsToReadAtOnceMax = 1000;
     readonly threadsToReadAtOnce = 30;
-    readonly emptyMessagesBeforeSkipping = 10;
+    readonly emptyMessagesBeforeSkipping = 3;
     facebookApi: any;
     errorsCount: number;
     queringAllThread: boolean = false;
 
-    threadsProgressesPath: string = path.join(__dirname, "threadsProgresses.json");
-    threadProgresses: { [threadId: string]: ThreadProgress } = {};
+    get threadsInfoManager(): SavedThreadManager {
+        return Singletons.savedThreadsManager;
+    }
+
+    get pathsManager(): PathsManager {
+        return Singletons.pathsManager;
+    }
 
     constructor(api: any) {
         this.facebookApi = api;
         this.errorsCount = 0;
-        try {
-            this.threadProgresses = JSON.parse(fs.readFileSync(this.threadsProgressesPath, 'utf8'));
-        } catch (error) { }
-    }
-
-    saveProgress() {
-        fs.writeFileSync(this.threadsProgressesPath, JSON.stringify(this.threadProgresses));
-    }
-
-    onError(error) {
-        console.error(error);
-        console.error("Retrying...")
-        this.errorsCount++;
-        let maximumErrors: number = this.queringAllThread ? this.MaxErrorsAll : this.MaxErrors;
-        if (this.errorsCount >= maximumErrors) {
-            throw Error("Exiting due too many errors");
-        }
     }
 
     async saveAll() {
@@ -70,16 +57,14 @@ export class MediaFetcher {
                     console.log("Thread name: " + name + ", message count: " + threadInfo.messageCount);
 
                     let urls = await this.getUrlsForThread(threadInfo);
-                    let urlsPath = path.join(__dirname, threadInfo.threadID, 'urls.txt');
-                    await this.saveUrlsToDisk(urlsPath, urls);
-                    console.log("Urls saved to " + urlsPath);
+                    await this.saveUrlsToDisk(threadInfo.threadID, urls);
                 }
                 else {
                     break;
                 }
             } catch (error) {
                 if (error instanceof MediaFetcherError) {
-                    console.error(error.message);
+                    Config.logError(error.message);
                     console.log("Could not get the whole conversation, skipping...");
                     this.errorsCount++;
 
@@ -96,7 +81,6 @@ export class MediaFetcher {
 
     async saveUrlsForThread(threadId: string) {
         this.queringAllThread = false;
-        let urls: string[] = [];
         do {
             try {
                 console.log("Getting thread info...");
@@ -104,56 +88,48 @@ export class MediaFetcher {
                 if (threadInfo) {
                     let name = await this.getThreadName(threadInfo);
                     console.log("Thread name: " + name + ", message count: " + threadInfo.messageCount);
-                    let urls: string[] = await this.getUrlsForThread(threadInfo);
-                    let urlsPath = path.join(__dirname, threadInfo.threadID, 'urls.txt');
-                    await this.saveUrlsToDisk(urlsPath, urls);
-                    console.log("Urls saved to " + urlsPath);
+
+                    let urls: string[] = await this.getUrlsForThread(threadInfo, name);
+
+                    await this.saveUrlsToDisk(threadId, urls);
                 } else {
                     throw new MediaFetcherError("Failed to query thread info");
                 }
                 break;
             } catch (error) {
                 if (error instanceof MediaFetcherError) {
-                    console.error(error.message);
-                    console.error("Failed to get urls, exiting...");
-                    break;
+                    Config.logError(error.message);
+                    Config.logError("Failed to get urls");
                 } else {
                     this.onError(error);
                 }
+                throw error;
             }
         } while (1);
         console.log("saveUrlsForThread Finished");
     }
 
-    async getThreadName(threadInfo: any): Promise<string> {
-        let name: string = threadInfo.name;
-        if (name == null) {
-            name = "";
-            let users: any[] = await this.getUserInfo(threadInfo.participantIDs);
-            users.forEach(user => name += user.name + "_");
-            if (name.length > 1) {
-                name = name.substring(0, name.length - 1);
-            }
-        }
-        return name;
-    }
 
     /**
      * Get urls for a given thread.
      * @param threadInfo
      * @returns 
      */
-    async getUrlsForThread(threadInfo: any): Promise<string[]> {
-        let threadProgress: ThreadProgress = this.threadProgresses[threadInfo.threadID] || new ThreadProgress();
+    async getUrlsForThread(threadInfo: any, name: string = null): Promise<string[]> {
+        let threadId: string = threadInfo.threadID;
+        let threadProgress: ThreadSavedInfo = this.threadsInfoManager.getThreadInfo(threadId);
         let messageTimestamp: number = threadProgress.lastTimestamp;
-        let history: any[] = [];
-        let urls: string[] = [];
         let readMessages: number = threadProgress.messagesRead;
+        let urls: string[] = this.readTempSavedUrls(threadId);
+        let history: any[] = [];
         let emptyHistoryCounter: number = 0;
         let percentReadNotify = 10;
+
+        const saveProgress = () => this.threadsInfoManager.saveThreadInfo(threadId, new ThreadSavedInfo(messageTimestamp, name || threadId, readMessages));
+
         do {
             try {
-                history = await this.fetchThreadHistory(threadInfo.threadID, messageTimestamp);
+                history = await this.fetchThreadHistory(threadId, messageTimestamp);
                 if (history.length > 0) {
                     readMessages += history.length;
                     let percent = Math.floor((readMessages / threadInfo.messageCount) * 100);
@@ -167,10 +143,8 @@ export class MediaFetcher {
                 else {
                     emptyHistoryCounter++;
                     if (emptyHistoryCounter >= this.emptyMessagesBeforeSkipping) {
-                        threadProgress.lastTimestamp = messageTimestamp;
-                        threadProgress.messagesRead = readMessages;
-                        this.threadProgresses[threadInfo.threadID] = threadProgress;
-                        this.saveProgress();
+                        saveProgress();
+                        this.saveTempSavedUrls(threadId, urls);
                         throw new MediaFetcherError("API calls limit reached");
                     }
                 }
@@ -183,83 +157,8 @@ export class MediaFetcher {
                 }
             }
         } while (readMessages < threadInfo.messageCount);
+        saveProgress();
         return urls;
-    }
-
-    async getNextThreads(amount: number, threadTimestamp: number): Promise<any[]> {
-        return new Promise((resolve, reject) => {
-            this.facebookApi.getThreadList(amount, threadTimestamp || null, [], (err, list) => {
-                if (err) {
-                    console.error(err);
-                    reject(Error("Error getting threads"));
-                    return;
-                }
-
-                // if the timestamp is not null then the first thread on the list is the one we got the last time
-                if (threadTimestamp != null) {
-                    list.pop();
-                }
-                resolve(list);
-            });
-        });
-
-    }
-
-    async getThreadInfo(threadID: string): Promise<any> {
-        return new Promise((resolve, reject) => {
-            this.facebookApi.getThreadInfo(threadID, (err, info) => {
-                if (err) {
-                    console.error(err);
-                    reject(Error("Failed to get thread info"));
-                    return;
-                }
-
-                resolve(info);
-            });
-        });
-    }
-
-    async getUserInfo(userIds: number[]): Promise<any[]> {
-        return new Promise((resolve, reject) => {
-            this.facebookApi.getUserInfo(userIds, (err, data) => {
-                if (err) {
-                    console.error(err);
-                    reject(Error("Failed to get thread info"));
-                    return;
-                }
-
-                let result: any[] = [];
-                for (var prop in data) {
-                    if (data.hasOwnProperty(prop)) {
-                        result.push(data[prop]);
-                    }
-                }
-                resolve(result);
-            });
-        });
-    }
-
-    async fetchThreadHistory(threadID: string, messageTimestamp: number): Promise<any[]> {
-        //delay so we do not reach api calls limit that fast
-        await delay(random.int(300, 500));
-        return new Promise((resolve, reject) => {
-            this.facebookApi.getThreadHistory(threadID, random.int(this.postsToReadAtOnceMin, this.postsToReadAtOnceMax), messageTimestamp, (err, history) => {
-                if (err) {
-                    console.error(err);
-                    reject(Error("Failed to get thread history"));
-                    return;
-                }
-
-                // if the timestamp is not null then the first message on the list is the one we got the last time
-                if (messageTimestamp != null) {
-                    if (history == null) {
-                        history = null;
-                    }
-                    history.pop()
-                };
-                resolve(history);
-            });
-        });
     }
 
     getUrlsFromMessage(msg): string[] {
@@ -281,16 +180,6 @@ export class MediaFetcher {
             }
         }
         return urls;
-    }
-
-    async saveUrlsToDisk(path: string, urls: string[]) {
-        if (urls.length > 0) {
-            await fse.mkdirp(path);
-            let writeStream = fs.createWriteStream(path);
-            writeStream.on('error', function (err) { console.error("IO ERROR: " + err); });
-            urls.forEach(url => writeStream.write(url + '\n', 'utf8'));
-            writeStream.end();
-        }
     }
 
     async saveThreadsList() {
@@ -317,10 +206,155 @@ export class MediaFetcher {
         if (threadsList.length > 0) {
             let filePath: string = path.join(__dirname, "threadsIDs.txt");
             let writeStream = fs.createWriteStream(filePath);
-            writeStream.on('error', function (err) { console.error("IO ERROR: " + err); });
+            writeStream.on('error', function (err) { Config.logError("IO ERROR: " + err); });
             threadsList.forEach(thread => writeStream.write(threadToString(thread) + '\n', 'utf8'));
             writeStream.end();
             console.log("Saved results to " + filePath);
         }
     }
+
+    //#region Utilities
+
+    onError(error) {
+        Config.logError(error);
+        Config.logError("Retrying...")
+        this.errorsCount++;
+        let maximumErrors: number = this.queringAllThread ? this.MaxErrorsAll : this.MaxErrors;
+        if (this.errorsCount >= maximumErrors) {
+            throw Error("Exiting due too many errors");
+        }
+    }
+
+    async getThreadName(threadInfo: any): Promise<string> {
+        let name: string = threadInfo.name;
+        if (name == null) {
+            name = "";
+            let users: any[] = await this.getUserInfo(threadInfo.participantIDs);
+            users.forEach(user => name += user.name + "_");
+            if (name.length > 1) {
+                name = name.substring(0, name.length - 1);
+            }
+        }
+        return name;
+    }
+
+    getTempUrlFilePath(threadID: string): string {
+        return path.join(__dirname, "temp", threadID + ".json");
+    }
+
+    readTempSavedUrls(threadID: string): string[] {
+        let filePath: string = this.getTempUrlFilePath(threadID);
+        let urls: string[] = [];
+        try {
+            urls = fse.readJsonSync(filePath);
+        } catch (error) { }
+        return urls;
+    }
+
+    saveTempSavedUrls(threadID: string, urls: string[]) {
+        let filePath: string = this.getTempUrlFilePath(threadID);
+        try {
+            fse.outputJsonSync(filePath, urls);
+        } catch (error) { }
+    }
+
+    async saveUrlsToDisk(threadId: string, urls: string[]) {
+        if (urls.length > 0) {
+            //remove duplicates
+            var uniqUrls = [...new Set(urls)];
+
+            let urlsPath: string = this.pathsManager.getUrlsPathForThread(threadId);
+
+            await fse.ensureFile(urlsPath);
+            let writeStream = fs.createWriteStream(urlsPath);
+            writeStream.on('error', function (err) { Config.logError("IO ERROR: " + err); });
+            uniqUrls.forEach(url => writeStream.write(url + '\n', 'utf8'));
+            var awaitableStreamEnd = new Promise((resolve, reject) => {
+                writeStream.end(resolve);
+            });
+            await awaitableStreamEnd;
+            console.log("Urls saved to " + urlsPath);
+        }
+    }
+
+    //#endregion
+
+    //#region Facebook API promisify
+
+    async getUserInfo(userIds: number[]): Promise<any[]> {
+        return new Promise((resolve, reject) => {
+            this.facebookApi.getUserInfo(userIds, (err, data) => {
+                if (err) {
+                    Config.logError(err);
+                    reject(Error("Failed to get thread info"));
+                    return;
+                }
+
+                let result: any[] = [];
+                for (var prop in data) {
+                    if (data.hasOwnProperty(prop)) {
+                        result.push(data[prop]);
+                    }
+                }
+                resolve(result);
+            });
+        });
+    }
+
+    async fetchThreadHistory(threadID: string, messageTimestamp: number): Promise<any[]> {
+        //delay so we do not reach api calls limit that fast
+        await delay(random.int(300, 500));
+        return new Promise((resolve, reject) => {
+            this.facebookApi.getThreadHistory(threadID, random.int(this.postsToReadAtOnceMin, this.postsToReadAtOnceMax), messageTimestamp, (err, history) => {
+                if (err) {
+                    Config.logError(err);
+                    reject(Error("Failed to get thread history"));
+                    return;
+                }
+
+                // if the timestamp is not null then the first message on the list is the one we got the last time
+                if (messageTimestamp != null) {
+                    if (history == null) {
+                        history = null;
+                    }
+                    history.pop()
+                };
+                resolve(history);
+            });
+        });
+    }
+
+    async getNextThreads(amount: number, threadTimestamp: number): Promise<any[]> {
+        return new Promise((resolve, reject) => {
+            this.facebookApi.getThreadList(amount, threadTimestamp || null, [], (err, list) => {
+                if (err) {
+                    Config.logError(err);
+                    reject(Error("Error getting threads"));
+                    return;
+                }
+
+                // if the timestamp is not null then the first thread on the list is the one we got the last time
+                if (threadTimestamp != null) {
+                    list.pop();
+                }
+                resolve(list);
+            });
+        });
+
+    }
+
+    async getThreadInfo(threadID: string): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this.facebookApi.getThreadInfo(threadID, (err, info) => {
+                if (err) {
+                    Config.logError(err);
+                    reject(Error("Failed to get thread info"));
+                    return;
+                }
+
+                resolve(info);
+            });
+        });
+    }
+    //#endregion
 }

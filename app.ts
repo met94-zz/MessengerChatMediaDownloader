@@ -1,8 +1,10 @@
 import * as Command from 'commander';
-import * as fs from 'fs';
+import * as fse from 'fs-extra';
 import { MediaFetcher } from './MediaFetcher';
 import { Core } from './Core';
 import { Downloader } from './Downloader';
+import * as delay from 'delay';
+import { Config } from './Config';
 
 Main();
 
@@ -12,14 +14,15 @@ async function Main() {
         .option('-r, --reset', 'resets the saved session, allows to relog to fb')
         .option('-a, --all', 'dump urls to photo/video/audio from all conversations')
         .option('-l, --list', 'get list of messenger conversations threadIDs')
+        .option('-i, --infinite', 'after a failure retries again in 3 minutes')
         .option('-t, --thread <threadID>', 'dump urls to photo/video/audio from conversation with given threadID');
     Command.parse(process.argv);
     let appState: any;
     if (!Command.reset) {
         try {
-            appState = JSON.parse(fs.readFileSync('appstate.json', 'utf8'));
+            appState = await fse.readJson('appstate.json');
         } catch (error) {
-            console.error(error);
+            Config.logError(error);
         }
     }
     if (Command.all || Command.list || Command.thread) {
@@ -27,22 +30,40 @@ async function Main() {
             let core: Core = new Core();
             await core.setup(appState);
 
-            //let downloader: Downloader = new Downloader();
-            //await downloader.downloadFiles("tet", "./tet2/", ["https://www.thebostoncalendar.com/system/events/photos/000/157/951/original/Tet_Ba_Mien_2018_new.png?1512401368"]);
-
-            let mediaFetcher = new MediaFetcher(core.facebookApi);
-            if (Command.all) {
-                await mediaFetcher.saveAll();
-            }
-            if (Command.list) {
-                await mediaFetcher.saveThreadsList();
-            }
-            if (Command.thread) {
-                await mediaFetcher.saveUrlsForThread(Command.thread);
+            while (1) {
+                try {
+                    let downloader: Downloader;
+                    if (Command.all || Command.thread) {
+                        downloader = new Downloader();
+                    }
+                    let mediaFetcher = new MediaFetcher(core.facebookApi);
+                    if (Command.all) {
+                        await mediaFetcher.saveAll();
+                        await downloader.downloadFilesForAll();
+                    }
+                    if (Command.list) {
+                        await mediaFetcher.saveThreadsList();
+                    }
+                    if (Command.thread) {
+                        let threadId: string = Command.thread;
+                        await mediaFetcher.saveUrlsForThread(threadId);
+                        await downloader.downloadFilesForThread(threadId);
+                    }
+                } catch (error) {
+                    if (!Command.infinite) {
+                        throw error;
+                    } else {
+                        let delayInMs: number = 1000 * 60 * 3;
+                        console.log("Will retry in " + delayInMs / 1000 / 60 + " minutes");
+                        await delay(delayInMs);
+                        continue;
+                    }
+                }
+                break;
             }
         } catch (error) {
-            console.error(error);
-            console.error("Fatal error, terminating...");
+            Config.logError(error);
+            Config.logError("Fatal error, terminating...");
         }
     }
     console.log("Main finished...");

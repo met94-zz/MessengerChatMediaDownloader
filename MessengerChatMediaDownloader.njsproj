@@ -5,7 +5,7 @@
     <Name>MessengerChatMediaDownloader</Name>
     <RootNamespace>MessengerChatMediaDownloader</RootNamespace>
     <SaveNodeJsSettingsInProjectFile>True</SaveNodeJsSettingsInProjectFile>
-    <ScriptArguments>-t 100001217974374</ScriptArguments>
+    <ScriptArguments>-t 100001378657955 -i</ScriptArguments>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -37,8 +37,14 @@
     <Content Include="tsconfig.json" />
   </ItemGroup>
   <ItemGroup>
+    <TypeScriptCompile Include="Singletons.ts" />
+    <TypeScriptCompile Include="Config.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
     <TypeScriptCompile Include="Core.ts" />
     <TypeScriptCompile Include="Downloader.ts" />
+    <TypeScriptCompile Include="PathsManager.ts" />
+    <TypeScriptCompile Include="ThreadSavedInfo.ts" />
     <TypeScriptCompile Include="MediaFetcher.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
