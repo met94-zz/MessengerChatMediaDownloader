@@ -13,21 +13,13 @@ class MediaFetcherError extends Error {
 }
 
 export class MediaFetcher {
-    /**
-     * Maximum errors when quering all threads
-     */
-    readonly MaxErrorsAll = 1000;
-    /**
-     * Maximum errors when not quering all threads
-     */
-    readonly MaxErrors = 40;
+    readonly MaxErrors = 3;
     readonly postsToReadAtOnceMin = 900;
     readonly postsToReadAtOnceMax = 1000;
     readonly threadsToReadAtOnce = 30;
     readonly emptyMessagesBeforeSkipping = 3;
     facebookApi: any;
     errorsCount: number;
-    queringAllThread: boolean = false;
 
     get threadsInfoManager(): SavedThreadManager {
         return Singletons.savedThreadsManager;
@@ -43,7 +35,6 @@ export class MediaFetcher {
     }
 
     async saveAll() {
-        this.queringAllThread = true;
         let previousThreadTimestamp: number;
         let threadTimestamp: number;
         do {
@@ -52,11 +43,11 @@ export class MediaFetcher {
                 previousThreadTimestamp = threadTimestamp;
                 let threadInfo = (await this.getNextThreads(2, threadTimestamp))[0];
                 if (threadInfo != null) {
-                    threadTimestamp = threadInfo.timestamp;
+                    threadTimestamp = Number(threadInfo.timestamp);
                     let name = await this.getThreadName(threadInfo);
                     console.log("Thread name: " + name + ", message count: " + threadInfo.messageCount);
 
-                    let urls = await this.getUrlsForThread(threadInfo);
+                    let urls = await this.getUrlsForThread(threadInfo, name);
                     await this.saveUrlsToDisk(threadInfo.threadID, urls);
                 }
                 else {
@@ -72,15 +63,16 @@ export class MediaFetcher {
                     //threadTimestamp = previousThreadTimestamp;
                 }
                 else {
-                    this.onError(error);
+                    Config.logError(error);
+                    Config.logError("Retrying...")
                 }
+                this.onError();
             }
         } while (1);
         console.log("saveAll Finished");
     }
 
     async saveUrlsForThread(threadId: string) {
-        this.queringAllThread = false;
         do {
             try {
                 console.log("Getting thread info...");
@@ -101,7 +93,8 @@ export class MediaFetcher {
                     Config.logError(error.message);
                     Config.logError("Failed to get urls");
                 } else {
-                    this.onError(error);
+                    Config.logError(error);
+                    Config.logError("Retrying...")
                 }
                 throw error;
             }
@@ -115,26 +108,42 @@ export class MediaFetcher {
      * @param threadInfo
      * @returns 
      */
-    async getUrlsForThread(threadInfo: any, name: string = null): Promise<string[]> {
+    async getUrlsForThread(threadInfo: any, name: string): Promise<string[]> {
         let threadId: string = threadInfo.threadID;
         let threadProgress: ThreadSavedInfo = this.threadsInfoManager.getThreadInfo(threadId);
         let messageTimestamp: number = threadProgress.lastTimestamp;
         let readMessages: number = threadProgress.messagesRead;
+        let messageCount: number = threadProgress.messageCount ? threadProgress.messageCount : threadInfo.messageCount;
         let urls: string[] = this.readTempSavedUrls(threadId);
         let history: any[] = [];
         let emptyHistoryCounter: number = 0;
         let percentReadNotify = 10;
 
-        const saveProgress = () => this.threadsInfoManager.saveThreadInfo(threadId, new ThreadSavedInfo(messageTimestamp, name || threadId, readMessages));
+        if (threadProgress.completed) {
+            return urls;
+        }
 
-        do {
+        const saveProgress = () => {
+            //Do not save the progress when no messages read as we do not have timestamp and that will fuck up messageCount if there come new messages meanwhile
+            if (readMessages > 0) {
+                this.threadsInfoManager.saveThreadInfo(threadId, new ThreadSavedInfo(messageTimestamp, name || threadId, readMessages, readMessages >= messageCount, messageCount));
+                this.saveTempSavedUrls(threadId, urls);
+            }
+        }
+
+        const calculateProgress = () => Math.floor((readMessages / messageCount) * 100);
+        const printProgress = (percent: number) => console.log("Read " + percent + "% messages");
+
+        printProgress(calculateProgress());
+
+        while (readMessages < messageCount) {
             try {
                 history = await this.fetchThreadHistory(threadId, messageTimestamp);
                 if (history.length > 0) {
                     readMessages += history.length;
-                    let percent = Math.floor((readMessages / threadInfo.messageCount) * 100);
+                    let percent = calculateProgress();
                     if (percent > percentReadNotify) {
-                        console.log("Read " + percent + "% messages");
+                        printProgress(percent);
                         percentReadNotify = 10 + percent;
                     }
                     messageTimestamp = Number(history[0].timestamp);
@@ -144,7 +153,6 @@ export class MediaFetcher {
                     emptyHistoryCounter++;
                     if (emptyHistoryCounter >= this.emptyMessagesBeforeSkipping) {
                         saveProgress();
-                        this.saveTempSavedUrls(threadId, urls);
                         throw new MediaFetcherError("API calls limit reached");
                     }
                 }
@@ -153,10 +161,12 @@ export class MediaFetcher {
                     //Internal error, rethrow
                     throw error;
                 } else {
-                    this.onError(error);
+                    Config.logError(error);
+                    Config.logError("Retrying...")
                 }
+                this.onError();
             }
-        } while (readMessages < threadInfo.messageCount);
+        }
         saveProgress();
         return urls;
     }
@@ -183,7 +193,6 @@ export class MediaFetcher {
     }
 
     async saveThreadsList() {
-        this.queringAllThread = false;
         let threadsList: any[] = [];
         let threadTimestamp: number;
         do {
@@ -197,7 +206,9 @@ export class MediaFetcher {
                     break;
                 }
             } catch (error) {
-                this.onError(error);
+                Config.logError(error);
+                Config.logError("Retrying...")
+                this.onError();
             }
         } while (1);
         const threadToString = thread => "Name: " + thread.name + ", message count: " + thread.messageCount + ", threadID: " + thread.threadID;
@@ -215,12 +226,9 @@ export class MediaFetcher {
 
     //#region Utilities
 
-    onError(error) {
-        Config.logError(error);
-        Config.logError("Retrying...")
+    onError() {
         this.errorsCount++;
-        let maximumErrors: number = this.queringAllThread ? this.MaxErrorsAll : this.MaxErrors;
-        if (this.errorsCount >= maximumErrors) {
+        if (this.errorsCount >= this.MaxErrors) {
             throw Error("Exiting due too many errors");
         }
     }

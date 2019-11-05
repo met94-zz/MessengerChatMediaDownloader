@@ -1,0 +1,5 @@
+appstate.json
+bin
+node_modules
+obj
+dist

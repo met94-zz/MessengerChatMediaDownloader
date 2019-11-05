@@ -9,13 +9,13 @@ import { Config } from './Config';
 Main();
 
 async function Main() {
-    Command.version('1.0.0');
+    Command.version('0.0.1');
     Command
         .option('-r, --reset', 'resets the saved session, allows to relog to fb')
-        .option('-a, --all', 'dump urls to photo/video/audio from all conversations')
-        .option('-l, --list', 'get list of messenger conversations threadIDs')
-        .option('-i, --infinite', 'after a failure retries again in 3 minutes')
-        .option('-t, --thread <threadID>', 'dump urls to photo/video/audio from conversation with given threadID');
+        .option('-a, --all', 'download photos/videos/audios from all conversations')
+        .option('-l, --list', 'list all conversations and their threadIds')
+        .option('-i, --infinite', 'keep retrying until all operations succeed')
+        .option('-t, --thread <threadID>', 'download photos/videos/audios from the conversation with given threadID');
     Command.parse(process.argv);
     let appState: any;
     if (!Command.reset) {

@@ -5,7 +5,7 @@
     <Name>MessengerChatMediaDownloader</Name>
     <RootNamespace>MessengerChatMediaDownloader</RootNamespace>
     <SaveNodeJsSettingsInProjectFile>True</SaveNodeJsSettingsInProjectFile>
-    <ScriptArguments>-t 100001378657955 -i</ScriptArguments>
+    <ScriptArguments>-a -i</ScriptArguments>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
