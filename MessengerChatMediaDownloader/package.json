@@ -6,6 +6,7 @@
   "author": {
     "name": "Alan Bara"
   },
+  "license": "MIT",
   "scripts": {
     "build": "tsc --build",
     "clean": "tsc --build --clean"
