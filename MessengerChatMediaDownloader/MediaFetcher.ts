@@ -41,18 +41,23 @@ export class MediaFetcher {
             try {
                 console.log("Getting thread info...");
                 previousThreadTimestamp = threadTimestamp;
-                let threadInfo = (await this.getNextThreads(2, threadTimestamp))[0];
-                if (threadInfo != null) {
-                    threadTimestamp = Number(threadInfo.timestamp);
-                    let name = await this.getThreadName(threadInfo);
-                    console.log("Thread name: " + name + ", message count: " + threadInfo.messageCount);
+                let threadsInfo = await this.getNextThreads(this.threadsToReadAtOnce, threadTimestamp);
+                if (threadsInfo != null) {
+                    for (let threadInfo of threadsInfo) {
+                        if (threadInfo != null) {
+                            threadTimestamp = Number(threadInfo.timestamp);
+                            let name = await this.getThreadName(threadInfo);
+                            console.log("Thread name: " + name + ", message count: " + threadInfo.messageCount);
 
-                    let urls = await this.getUrlsForThread(threadInfo, name);
-                    await this.saveUrlsToDisk(threadInfo.threadID, urls);
+                            let urls = await this.getUrlsForThread(threadInfo, name);
+                            await this.saveUrlsToDisk(threadInfo.threadID, urls);
+                        }
+                    }
                 }
                 else {
                     break;
                 }
+                await delay(random.int(1000, 5000));
             } catch (error) {
                 if (error instanceof MediaFetcherError) {
                     Config.logError(error.message);
