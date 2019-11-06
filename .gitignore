@@ -3,3 +3,5 @@ bin
 node_modules
 obj
 dist
+.vs
+package-lock.json
