@@ -37,8 +37,8 @@ export class Downloader {
         let sourceDir: string = mainThreadsPath;
         let directories: string[] = fse.readdirSync(sourceDir).map(name => path.join(sourceDir, name)).filter(isDirectory)
 
-        for (let dir in directories) {
-            let threadId = dir;
+        for (let dir of directories) {
+            let threadId = path.basename(dir);
             await this.downloadFilesForThread(threadId);
         }
     }

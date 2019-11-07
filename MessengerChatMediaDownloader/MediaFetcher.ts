@@ -42,7 +42,7 @@ export class MediaFetcher {
                 console.log("Getting thread info...");
                 previousThreadTimestamp = threadTimestamp;
                 let threadsInfo = await this.getNextThreads(this.threadsToReadAtOnce, threadTimestamp);
-                if (threadsInfo != null) {
+                if (threadsInfo && threadsInfo.length > 0) {
                     for (let threadInfo of threadsInfo) {
                         if (threadInfo != null) {
                             threadTimestamp = Number(threadInfo.timestamp);
