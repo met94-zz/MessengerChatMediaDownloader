@@ -18,9 +18,10 @@ async function Main() {
         .option('-t, --thread <threadID>', 'download photos/videos/audios from the conversation with given threadID');
     Command.parse(process.argv);
     let appState: any;
-    if (!Command.reset) {
+    let appStateFileName: string = 'appstate.json';
+    if (!Command.reset && fse.existsSync(appStateFileName)) {
         try {
-            appState = await fse.readJson('appstate.json');
+            appState = await fse.readJson(appStateFileName);
         } catch (error) {
             Config.logError(error);
         }
@@ -50,6 +51,7 @@ async function Main() {
                         await downloader.downloadFilesForThread(threadId);
                     }
                 } catch (error) {
+                    Config.logError(error);
                     if (!Command.infinite) {
                         throw error;
                     } else {
