@@ -2,17 +2,26 @@ import * as fse from 'fs-extra';
 import * as Facebook from 'facebook-chat-api';
 import * as readline from 'readline';
 import { Config } from './Config';
+import { Singletons } from './Singletons';
+import { PathsManager } from './PathsManager';
 
 export class Core {
     facebookApi: any;
+    get pathsManager(): PathsManager {
+        return Singletons.pathsManager;
+    }
 
     constructor() {
     }
 
     async setup(appState: any): Promise<any> {
-        this.facebookApi = await this.logFacebook(appState);
-        if (appState != null && this.facebookApi == null) {
-            Config.logError("Failed to log with the appState. Retrying with credentials");
+        if (appState != null) {
+            this.facebookApi = await this.logFacebook(appState);
+        }
+        if (this.facebookApi == null) {
+            if (appState != null) {
+                Config.logError("Failed to log with the appState. Retrying with credentials");
+            }
             this.facebookApi = await this.logFacebookWithCredentials();
         }
         if (this.facebookApi == null) {
@@ -47,7 +56,7 @@ export class Core {
                         reject(Error(err));
                         return;
                     }
-                    fse.outputJsonSync("appstate.json", api.getAppState());
+                    fse.outputJsonSync(this.pathsManager.getAppStatePath(), api.getAppState());
                     resolve(api);
                 };
                 // Log in
