@@ -13,7 +13,7 @@ var pathsManager: PathsManager = Singletons.pathsManager;
 Main();
 
 async function Main() {
-    Command.version('0.0.1');
+    Command.version('0.0.2');
     Command
         .option('-r, --reset', 'resets the saved session, allows to relog to fb')
         .option('-a, --all', 'download photos/videos/audios from all conversations')
