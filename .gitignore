@@ -5,3 +5,10 @@ obj
 dist
 .vs
 package-lock.json
+/MessengerChatMediaDownloader/*.bak
+/MessengerChatMediaDownloader/temp
+/MessengerChatMediaDownloader/threads
+/MessengerChatMediaDownloader/threadsIDs.txt
+/MessengerChatMediaDownloader/threadsInfo.json
+/MessengerChatMediaDownloader/TODO.txt
+/MessengerChatMediaDownloader/outputs
