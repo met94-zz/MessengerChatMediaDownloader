@@ -48,4 +48,8 @@ export class PathsManager {
     getTempUrlFilePath(threadID: string): string {
         return path.join(this.basedir, "temp", threadID + ".json");
     }
+
+    getAppStatePath(): string {
+        return path.join(this.basedir, "appstate.json");
+    }
 }

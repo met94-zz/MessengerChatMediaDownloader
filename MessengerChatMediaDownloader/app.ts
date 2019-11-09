@@ -5,6 +5,10 @@ import { Core } from './Core';
 import { Downloader } from './Downloader';
 import * as delay from 'delay';
 import { Config } from './Config';
+import { Singletons } from './Singletons';
+import { PathsManager } from './PathsManager';
+
+var pathsManager: PathsManager = Singletons.pathsManager;
 
 Main();
 
@@ -18,7 +22,7 @@ async function Main() {
         .option('-t, --thread <threadID>', 'download photos/videos/audios from the conversation with given threadID');
     Command.parse(process.argv);
     let appState: any;
-    let appStateFileName: string = 'appstate.json';
+    let appStateFileName: string = pathsManager.getAppStatePath();
     if (!Command.reset && fse.existsSync(appStateFileName)) {
         try {
             appState = await fse.readJson(appStateFileName);

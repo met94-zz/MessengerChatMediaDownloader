@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as fse from 'fs-extra';
 import * as delay from 'delay';
 import * as random from 'random';
@@ -221,7 +220,7 @@ export class MediaFetcher {
 
         if (threadsList.length > 0) {
             let filePath: string = this.pathsManager.getThreadsIdsFilePath();
-            let writeStream = fs.createWriteStream(filePath);
+            let writeStream = fse.createWriteStream(filePath);
             writeStream.on('error', function (err) { Config.logError("IO ERROR: " + err); });
             threadsList.forEach(thread => writeStream.write(threadToString(thread) + '\n', 'utf8'));
             writeStream.end();
@@ -275,7 +274,7 @@ export class MediaFetcher {
             let urlsPath: string = this.pathsManager.getUrlsPathForThread(threadId);
 
             await fse.ensureFile(urlsPath);
-            let writeStream = fs.createWriteStream(urlsPath);
+            let writeStream = fse.createWriteStream(urlsPath);
             writeStream.on('error', function (err) { Config.logError("IO ERROR: " + err); });
             uniqUrls.forEach(url => writeStream.write(url + '\n', 'utf8'));
             var awaitableStreamEnd = new Promise((resolve, reject) => {
