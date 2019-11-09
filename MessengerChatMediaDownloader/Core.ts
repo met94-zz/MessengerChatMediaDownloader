@@ -13,7 +13,7 @@ export class Core {
         this.facebookApi = await this.logFacebook(appState);
         if (appState != null && this.facebookApi == null) {
             Config.logError("Failed to log with the appState. Retrying with credentials");
-            this.facebookApi = await this.logFacebook(null);
+            this.facebookApi = await this.logFacebookWithCredentials();
         }
         if (this.facebookApi == null) {
             throw Error("Failed to log in");
@@ -21,7 +21,7 @@ export class Core {
         return this.facebookApi;
     }
 
-    async logFacebook(appState: any): Promise<any> {
+    async logFacebookWithCredentials(): Promise<any> {
         const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout
@@ -32,12 +32,13 @@ export class Core {
                 rl.question(question, resolve);
             });
         }
-        let login: string, password: string;
-        if (appState == null) {
-            login = await ReadText('Enter facebook login: ');
-            password = await ReadText('Enter facebook password: ');
-        }
+        let login: string = await ReadText('Enter facebook login: ');
+        let password: string = await ReadText('Enter facebook password: ');
+        rl.close();
+        return await this.logFacebook(null, login, password);
+    }
 
+    async logFacebook(appState: any, login: string = null, password: string = null): Promise<any> {
         try {
             let facebookApi: any = await new Promise((resolve, reject) => {
                 const loginCallback = (err: string, api: any) => {
