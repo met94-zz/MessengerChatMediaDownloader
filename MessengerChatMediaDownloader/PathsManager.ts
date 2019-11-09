@@ -1,17 +1,27 @@
 import * as path from 'path';
-import { SavedThreadManager } from './ThreadSavedInfo';
 import { Singletons } from './Singletons';
+import { SavedThreadManager } from './SavedThreadManager';
 
 export class PathsManager {
-    threadsMainPath: string = path.join(__dirname, "threads");
-    threadsMainOutputPath: string = path.join(__dirname, "outputs");
+
     get threadsInfoManager(): SavedThreadManager {
         return Singletons.savedThreadsManager;
     }
 
+    get threadsMainPath(): string {
+        return path.join(this.basedir, "threads");
+    }
+
+    get threadsMainOutputPath(): string {
+        return path.join(this.basedir, "outputs");
+    }
+
+    get basedir(): string {
+        return process.cwd();
+    }
+
     getPathForThread(threadId: string): string {
-        //let name: string = this.threadsInfoManager.getThreadInfo(threadId).name;
-        return path.join(this.threadsMainPath, threadId);//name);
+        return path.join(this.threadsMainPath, threadId);
     }
 
     getUrlsPathForThread(threadId: string): string {
@@ -24,6 +34,18 @@ export class PathsManager {
     }
 
     getFileProgressPathForThread(threadId: string): string {
-        return path.join(__dirname, threadId, "fileProgresses.json");
+        return path.join(this.basedir, threadId, "fileProgresses.json");
+    }
+
+    getThreadsInfoFilePath(): string {
+        return path.join(this.basedir, "threadsInfo.json");
+    }
+
+    getThreadsIdsFilePath(): string {
+        return path.join(this.basedir, "threadsIDs.txt");
+    }
+
+    getTempUrlFilePath(threadID: string): string {
+        return path.join(this.basedir, "temp", threadID + ".json");
     }
 }

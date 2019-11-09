@@ -2,11 +2,11 @@ import * as fs from 'fs';
 import * as fse from 'fs-extra';
 import * as delay from 'delay';
 import * as random from 'random';
-import * as path from 'path';
 import { Config } from './Config';
-import { SavedThreadManager, ThreadSavedInfo } from './ThreadSavedInfo';
 import { PathsManager } from './PathsManager';
 import { Singletons } from './Singletons';
+import { ThreadSavedInfo } from './ThreadSavedInfo';
+import { SavedThreadManager } from './SavedThreadManager';
 
 class MediaFetcherError extends Error {
 
@@ -220,7 +220,7 @@ export class MediaFetcher {
         threadsList.sort((a, b) => b.messageCount - a.messageCount);
 
         if (threadsList.length > 0) {
-            let filePath: string = path.join(__dirname, "threadsIDs.txt");
+            let filePath: string = this.pathsManager.getThreadsIdsFilePath();
             let writeStream = fs.createWriteStream(filePath);
             writeStream.on('error', function (err) { Config.logError("IO ERROR: " + err); });
             threadsList.forEach(thread => writeStream.write(threadToString(thread) + '\n', 'utf8'));
@@ -251,12 +251,8 @@ export class MediaFetcher {
         return name;
     }
 
-    getTempUrlFilePath(threadID: string): string {
-        return path.join(__dirname, "temp", threadID + ".json");
-    }
-
     readTempSavedUrls(threadID: string): string[] {
-        let filePath: string = this.getTempUrlFilePath(threadID);
+        let filePath: string = this.pathsManager.getTempUrlFilePath(threadID);
         let urls: string[] = [];
         try {
             urls = fse.readJsonSync(filePath);
@@ -265,7 +261,7 @@ export class MediaFetcher {
     }
 
     saveTempSavedUrls(threadID: string, urls: string[]) {
-        let filePath: string = this.getTempUrlFilePath(threadID);
+        let filePath: string = this.pathsManager.getTempUrlFilePath(threadID);
         try {
             fse.outputJsonSync(filePath, urls);
         } catch (error) { }
