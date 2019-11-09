@@ -2,7 +2,7 @@
   "name": "messenger-chat-media-downloader",
   "version": "0.0.1",
   "description": "MessengerChatMediaDownloader",
-  "main": "app.js",
+  "main": "./dist/app.js",
   "author": {
     "name": "Alan Bara"
   },
@@ -26,6 +26,7 @@
     "random": "^2.1.1"
   },
   "pkg": {
-    "scripts": "./dist/*.js"
-  }
+    "scripts": [ "dist/*.js", "node_modules/**/*.js" ]
+  },
+  "bin": "./dist/app.js"
 }
