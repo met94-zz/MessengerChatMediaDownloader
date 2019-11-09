@@ -45,6 +45,7 @@
     <TypeScriptCompile Include="Downloader.ts" />
     <TypeScriptCompile Include="PathsManager.ts" />
     <TypeScriptCompile Include="ThreadSavedInfo.ts" />
+    <TypeScriptCompile Include="SavedThreadManager.ts" />
     <TypeScriptCompile Include="MediaFetcher.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
