@@ -13,18 +13,22 @@ conversation scanning started will be ignored. To scan&download such messages, y
 #### -h, --help - Print help.
 #### -V, --version - Print version.
 
-<a name="infinite_explanation"></a>There seem to be some kind of API calls limit so if you attempt to dump media from a large conversation
+<span style="color:red"><a name="infinite_explanation"></a>There seem to be some kind of API calls limit so if you attempt to dump media from a large conversation
 or all conversations, you will most likely hit the limit. That's why there's is -i, --infinite option, so the utility will keep retrying
-to dump everything until it succeeds.
+to dump everything until it succeeds.</span>
 
 
 ## Usage
 [Node.js](https://nodejs.org/) is required to run the utility.<br/>
+<span style="color:red">
+[Releases](https://github.com/met94/MessengerChatMediaDownloader/releases) contain executables that allow you to run the utility without having to install Node.js
+though I recommend running the utility through Node.js.
+</span><br/>
 Command line options are pretty self-explanatory.<br/>
 Run with -a, -all option to dump media from all conversations.<br/>
 To dump media from a single conversation you have to get its threadId. In order to do that run the utility with -l, --list option,
 read threadId of the conversation you are interested in, and then run the utility with -t --thread &lt;threadId&gt; option.<br/>
-I recommend to run the above along with -i, --infinite, see [here](#infinite_explanation) for the explanation.
+I recommend to run the above along with -i, --infinite, see [the section above](#infinite_explanation) for the explanation.
 
 ## Output
 Downloaded files are outputted to ```./outputs/<conversation_name || threadID>/```.
