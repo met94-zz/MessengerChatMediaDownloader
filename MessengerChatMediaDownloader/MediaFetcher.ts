@@ -86,7 +86,13 @@ export class MediaFetcher {
                     console.log("Thread name: " + name + ", message count: " + threadInfo.messageCount);
 
                     let urls: string[] = await this.getUrlsForThread(threadInfo, name);
-
+                    for (let i = 0; i < urls.length; i++){
+                        let url = urls[i];
+                        if (!url.includes("https")) {
+                            await delay(random.int(1000, 5000));
+                            urls[i] = await this.getFullPhotoUrl(url);
+                        }
+                    }
                     await this.saveUrlsToDisk(threadId, urls);
                 } else {
                     throw new MediaFetcherError("Failed to query thread info");
@@ -110,7 +116,7 @@ export class MediaFetcher {
     /**
      * Get urls for a given thread.
      * @param threadInfo
-     * @returns 
+     * @returns
      */
     async getUrlsForThread(threadInfo: any, name: string): Promise<string[]> {
         let threadId: string = threadInfo.threadID;
@@ -182,7 +188,7 @@ export class MediaFetcher {
                 msg.attachments.forEach(attachment => {
                     let url = null;
                     if (attachment.type == "photo") {
-                        url = attachment.largePreviewUrl;
+                        url = attachment.ID;
                     }
                     else if (attachment.type == "audio" || attachment.type == "video") {
                         url = attachment.url;
@@ -361,6 +367,20 @@ export class MediaFetcher {
                 }
 
                 resolve(info);
+            });
+        });
+    }
+
+    async getFullPhotoUrl(ID: string): Promise<string> {
+        return new Promise((resolve, reject) => {
+            this.facebookApi.resolvePhotoUrl(ID,  (err, url) => {
+                if (err) {
+                    Config.logError(err);
+                    reject(Error("Failed to resolve full photo url"));
+                    return;
+                }
+
+                resolve(url);
             });
         });
     }
