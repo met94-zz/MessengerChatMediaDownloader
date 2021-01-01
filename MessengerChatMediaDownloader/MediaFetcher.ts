@@ -86,13 +86,7 @@ export class MediaFetcher {
                     console.log("Thread name: " + name + ", message count: " + threadInfo.messageCount);
 
                     let urls: string[] = await this.getUrlsForThread(threadInfo, name);
-                    for (let i = 0; i < urls.length; i++){
-                        let url = urls[i];
-                        if (!url.includes("https")) {
-                            await delay(random.int(1000, 5000));
-                            urls[i] = await this.getFullPhotoUrl(url);
-                        }
-                    }
+
                     await this.saveUrlsToDisk(threadId, urls);
                 } else {
                     throw new MediaFetcherError("Failed to query thread info");
@@ -158,6 +152,14 @@ export class MediaFetcher {
                     }
                     messageTimestamp = Number(history[0].timestamp);
                     history.forEach(msg => urls = urls.concat(this.getUrlsFromMessage(msg)));
+                    for (let i = 0; i < urls.length; i++) {
+                        let attachmentID = urls[i];
+                        console.log("ID: " + attachmentID);
+                        if (attachmentID.indexOf("https") == -1) {
+                            await delay(random.int(5000, 10_000));
+                            urls[i] = await this.getFullPhotoUrl(attachmentID);
+                        }
+                    }
                 }
                 else {
                     emptyHistoryCounter++;
