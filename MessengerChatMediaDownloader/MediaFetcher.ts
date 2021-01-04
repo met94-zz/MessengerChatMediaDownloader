@@ -154,9 +154,8 @@ export class MediaFetcher {
                     history.forEach(msg => urls = urls.concat(this.getUrlsFromMessage(msg)));
                     for (let i = 0; i < urls.length; i++) {
                         let attachmentID = urls[i];
-                        console.log("ID: " + attachmentID);
                         if (attachmentID.indexOf("https") == -1) {
-                            await delay(random.int(5000, 10_000));
+                            await new Promise(r => setTimeout(r, random.int(10_000, 15_000)));
                             urls[i] = await this.getFullPhotoUrl(attachmentID);
                         }
                     }
