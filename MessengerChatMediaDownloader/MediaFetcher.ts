@@ -110,7 +110,7 @@ export class MediaFetcher {
     /**
      * Get urls for a given thread.
      * @param threadInfo
-     * @returns 
+     * @returns
      */
     async getUrlsForThread(threadInfo: any, name: string): Promise<string[]> {
         let threadId: string = threadInfo.threadID;
@@ -152,6 +152,13 @@ export class MediaFetcher {
                     }
                     messageTimestamp = Number(history[0].timestamp);
                     history.forEach(msg => urls = urls.concat(this.getUrlsFromMessage(msg)));
+                    for (let i = 0; i < urls.length; i++) {
+                        let attachmentID = urls[i];
+                        if (attachmentID.indexOf("https") == -1) {
+                            await new Promise(r => setTimeout(r, random.int(10_000, 15_000)));
+                            urls[i] = await this.getFullPhotoUrl(attachmentID);
+                        }
+                    }
                 }
                 else {
                     emptyHistoryCounter++;
@@ -182,7 +189,7 @@ export class MediaFetcher {
                 msg.attachments.forEach(attachment => {
                     let url = null;
                     if (attachment.type == "photo") {
-                        url = attachment.largePreviewUrl;
+                        url = attachment.ID;
                     }
                     else if (attachment.type == "audio" || attachment.type == "video") {
                         url = attachment.url;
@@ -361,6 +368,20 @@ export class MediaFetcher {
                 }
 
                 resolve(info);
+            });
+        });
+    }
+
+    async getFullPhotoUrl(ID: string): Promise<string> {
+        return new Promise((resolve, reject) => {
+            this.facebookApi.resolvePhotoUrl(ID,  (err, url) => {
+                if (err) {
+                    Config.logError(err);
+                    reject(Error("Failed to resolve full photo url"));
+                    return;
+                }
+
+                resolve(url);
             });
         });
     }
